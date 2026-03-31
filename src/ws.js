@@ -3,7 +3,7 @@ const WebSocket = require('ws');
 const jwt = require('jsonwebtoken');
 
 const { prisma } = require('./prisma');
-const { serializeMessage } = require('./routes/chat');
+const { serializeMessage } = require('./serializers/chat');
 
 function accessSecret() {
   const s = process.env.JWT_ACCESS_SECRET;
