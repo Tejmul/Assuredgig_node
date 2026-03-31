@@ -10,9 +10,18 @@ async function main() {
   const app = await createApp();
   const server = http.createServer(app);
 
-  attachWebsocketServer(server);
+  server.on('error', (err) => {
+    if (err && err.code === 'EADDRINUSE') {
+      console.error(`[assuredgig-node] Port ${port} is already in use. Stop the other process or set PORT to a free port.`);
+      process.exitCode = 1;
+      return;
+    }
+    console.error(err);
+    process.exitCode = 1;
+  });
 
   server.listen(port, () => {
+    attachWebsocketServer(server);
     console.log(`[assuredgig-node] listening on :${port}`);
   });
 }

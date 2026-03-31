@@ -13,7 +13,7 @@ async function createApp() {
   app.use(cors({ origin: true, credentials: false }));
   app.use(express.json({ limit: '1mb' }));
   app.use(morgan('dev'));
-
+ 
   app.get('/health/', (req, res) => res.json({ status: 'ok' }));
 
   app.use('/api/v1', apiRouter);
