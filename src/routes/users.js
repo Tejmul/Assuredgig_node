@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { z } = require('zod');
-const { nanoid } = require('nanoid');
+const { randomUUID } = require('crypto');
 
 const { prisma } = require('../prisma');
 const { requireAuth } = require('../middleware/auth');
@@ -9,6 +9,11 @@ const { signAccessToken, signRefreshToken, verifyRefreshToken, hashToken, refres
 const { sendOtpEmail } = require('../utils/mail');
 
 const router = express.Router();
+
+function shortId(len = 6) {
+  // randomUUID() is available in Node 22 and avoids ESM-only nanoid.
+  return randomUUID().replace(/-/g, '').slice(0, len);
+}
 
 function serializeUser(user) {
   const profile = user.profile
@@ -36,7 +41,7 @@ function serializeUser(user) {
 
 async function issueTokens(user) {
   const access = signAccessToken(user);
-  const refreshJwt = signRefreshToken(user, nanoid(16));
+  const refreshJwt = signRefreshToken(user, randomUUID());
   const refreshHash = hashToken(refreshJwt);
   const expiresAt = new Date(Date.now() + refreshTtlSeconds() * 1000);
 
@@ -70,7 +75,7 @@ router.post('/register/', async (req, res, next) => {
 
     const passwordHash = await bcrypt.hash(body.password, 10);
 
-    const userName = body.user_name || `${body.email.split('@')[0]}-${nanoid(6)}`;
+    const userName = body.user_name || `${body.email.split('@')[0]}-${shortId(6)}`;
 
     const user = await prisma.user.create({
       data: {
@@ -91,7 +96,7 @@ router.post('/register/', async (req, res, next) => {
     });
 
     const access = signAccessToken(user);
-    const refreshJwt = signRefreshToken(user, nanoid(16));
+    const refreshJwt = signRefreshToken(user, randomUUID());
     const refreshHash = hashToken(refreshJwt);
     const expiresAt = new Date(Date.now() + refreshTtlSeconds() * 1000);
 
@@ -132,7 +137,7 @@ router.post('/login/', async (req, res, next) => {
     if (!ok) return res.status(400).json({ error: 'Invalid credentials' });
 
     const access = signAccessToken(user);
-    const refreshJwt = signRefreshToken(user, nanoid(16));
+    const refreshJwt = signRefreshToken(user, randomUUID());
     const refreshHash = hashToken(refreshJwt);
     const expiresAt = new Date(Date.now() + refreshTtlSeconds() * 1000);
 
