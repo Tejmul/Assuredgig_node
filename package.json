@@ -13,7 +13,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "db:setup": "prisma generate && prisma migrate deploy",
+    "db:setup": "npm i && prisma generate && prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "db:seed": "node prisma/seed.js"
   },
