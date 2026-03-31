@@ -24,5 +24,17 @@ async function createApp() {
   return app;
 }
 
-module.exports = { createApp };
+let cachedApp;
+
+// Vercel (and other serverless runtimes) may treat this module as an entrypoint.
+// Export a default handler, while still exposing createApp for local/server usage.
+async function handler(req, res) {
+  if (!cachedApp) {
+    cachedApp = await createApp();
+  }
+  return cachedApp(req, res);
+}
+
+module.exports = handler;
+module.exports.createApp = createApp;
 
