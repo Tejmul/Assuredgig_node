@@ -17,7 +17,7 @@ logs/
 # Environment files (never commit secrets)
 .env
 .env.*
-!.env.example
+.env.example
 
 # Build outputs
 dist/
@@ -41,6 +41,7 @@ temp/
 .vscode/
 .idea/
 *.swp
+.cursor/
 
 # Prisma
 prisma/dev.db
