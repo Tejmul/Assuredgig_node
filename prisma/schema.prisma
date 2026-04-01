@@ -6,57 +6,45 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-// Notes:
-// - Primary keys are integers (like Django), but we expose UUIDs for API usage.
-// - "roles" are enforced by endpoint rules, not a dedicated role field.
 
 model User {
-  id           Int      @id @default(autoincrement())
-  uuid         String   @unique @default(uuid())
-  email        String?  @unique
-  passwordHash String
-  userName     String   @unique
-  dateJoined   DateTime @default(now())
-  isActive     Boolean  @default(true)
-  isStaff      Boolean  @default(false)
-  isSuperuser  Boolean  @default(false)
-  phoneNumber  String?  @unique
-  mfaHash      String?  @db.VarChar(40)
-  signupScheme String   @default("email")
-  invitedById  Int?
-  verified     Boolean  @default(false)
-
-  invitedBy User?  @relation("UserInvites", fields: [invitedById], references: [id], onDelete: SetNull)
-  invites   User[] @relation("UserInvites")
-
-  profile          UserProfile?
-  portfolioProfile PortfolioProfile?
-
-  applications ApplicationModel[]
-  clientContracts     Contract[] @relation("ContractClient")
-  freelancerContracts Contract[] @relation("ContractFreelancer")
-
-  user1ChatRooms ChatRoom[] @relation("ChatRoomUser1")
-  user2ChatRooms ChatRoom[] @relation("ChatRoomUser2")
-  sentMessages   ChatMessage[]
-
-  receivedReviews UserReview[] @relation("ReviewFreelancer")
-  givenReviews    UserReview[] @relation("ReviewClient")
-
-  approvedMilestones ContractMilestone[] @relation("MilestoneApprovedBy")
-  contractUpdates    ContractUpdateHistory[] @relation("ContractUpdateUpdatedBy")
-  approvedContractUpdates ContractUpdateHistory[] @relation("ContractUpdateApprovedBy")
-  raisedDisputes     ContractDispute[] @relation("ContractDisputeRaisedBy")
-
-  portfolioSkills PortfolioSkill[]
-  portfolioLanguages PortfolioLanguage[]
-  portfolioProjects PortfolioProject[]
+  id                      Int                      @id @default(autoincrement())
+  uuid                    String                   @unique @default(uuid())
+  email                   String?                  @unique
+  passwordHash            String
+  userName                String                   @unique
+  dateJoined              DateTime                 @default(now())
+  isActive                Boolean                  @default(true)
+  isStaff                 Boolean                  @default(false)
+  isSuperuser             Boolean                  @default(false)
+  phoneNumber             String?                  @unique
+  mfaHash                 String?                  @db.VarChar(40)
+  signupScheme            String                   @default("email")
+  invitedById             Int?
+  verified                Boolean                  @default(false)
+  applications            ApplicationModel[]
+  sentMessages            ChatMessage[]
+  user1ChatRooms          ChatRoom[]               @relation("ChatRoomUser1")
+  user2ChatRooms          ChatRoom[]               @relation("ChatRoomUser2")
+  createdGigs             ClientPost[]
+  clientContracts         Contract[]               @relation("ContractClient")
+  freelancerContracts     Contract[]               @relation("ContractFreelancer")
+  raisedDisputes          ContractDispute[]        @relation("ContractDisputeRaisedBy")
+  approvedMilestones      ContractMilestone[]      @relation("MilestoneApprovedBy")
+  approvedContractUpdates ContractUpdateHistory[]  @relation("ContractUpdateApprovedBy")
+  contractUpdates         ContractUpdateHistory[]  @relation("ContractUpdateUpdatedBy")
+  passwordResetOtps       PasswordResetOTP[]
   portfolioCertifications PortfolioCertification[]
-
-  refreshTokens RefreshToken[]
-  passwordResetOtps PasswordResetOTP[]
-
-  createdGigs ClientPost[]
+  portfolioLanguages      PortfolioLanguage[]
+  portfolioProfile        PortfolioProfile?
+  portfolioProjects       PortfolioProject[]
+  portfolioSkills         PortfolioSkill[]
+  refreshTokens           RefreshToken[]
+  invitedBy               User?                    @relation("UserInvites", fields: [invitedById], references: [id])
+  invites                 User[]                   @relation("UserInvites")
+  profile                 UserProfile?
+  givenReviews            UserReview[]             @relation("ReviewClient")
+  receivedReviews         UserReview[]             @relation("ReviewFreelancer")
 }
 
 model UserProfile {
@@ -68,62 +56,57 @@ model UserProfile {
   hourlyRate     Decimal? @db.Decimal(10, 2)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PasswordResetOTP {
-  id              Int      @id @default(autoincrement())
-  uuid            String   @unique @default(uuid())
+  id              Int       @id @default(autoincrement())
+  uuid            String    @unique @default(uuid())
   userId          Int
-  otp             String   @db.VarChar(6)
-  createdAt       DateTime @default(now())
-  isAuthenticated Boolean  @default(false)
+  otp             String    @db.VarChar(6)
+  createdAt       DateTime  @default(now())
+  isAuthenticated Boolean   @default(false)
   isUsedAt        DateTime?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, otp])
 }
 
 model RefreshToken {
-  id          Int      @id @default(autoincrement())
-  uuid        String   @unique @default(uuid())
-  userId      Int
-  tokenHash   String   @unique
-  createdAt   DateTime @default(now())
-  expiresAt   DateTime
-  revokedAt   DateTime?
-  replacedBy  String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         Int       @id @default(autoincrement())
+  uuid       String    @unique @default(uuid())
+  userId     Int
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ClientPost {
-  id             Int      @id @default(autoincrement())
-  uuid           String   @unique @default(uuid())
+  id             Int                @id @default(autoincrement())
+  uuid           String             @unique @default(uuid())
   clientId       Int
-  clientName     String   @db.VarChar(77)
-  title          String   @db.VarChar(200)
+  clientName     String             @db.VarChar(77)
+  title          String             @db.VarChar(200)
   description    String
-  category       String?  @db.VarChar(100)
-  budget         Decimal  @db.Decimal(10, 2)
+  category       String?            @db.VarChar(100)
+  budget         Decimal            @db.Decimal(10, 2)
   projectType    String
-  duration       String?  @db.VarChar(100)
-  skillsRequired Json     @default("[]")
-  location       String?  @db.VarChar(100)
+  duration       String?            @db.VarChar(100)
+  skillsRequired Json               @default("[]")
+  location       String?            @db.VarChar(100)
   difficulty     String?
-  verified       Boolean  @default(false)
-  featured       Boolean  @default(false)
+  verified       Boolean            @default(false)
+  featured       Boolean            @default(false)
   deadline       DateTime?
-  status         String   @default("open")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  client User @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  applications ApplicationModel[]
-  contracts    Contract[]
+  status         String             @default("open")
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  applications   ApplicationModel[]
+  client         User               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contracts      Contract[]
 }
 
 model FeedbackModel {
@@ -136,146 +119,130 @@ model FeedbackModel {
 }
 
 model ApplicationModel {
-  id          Int      @id @default(autoincrement())
-  uuid        String   @unique @default(uuid())
-  gigId       Int
+  id           Int        @id @default(autoincrement())
+  uuid         String     @unique @default(uuid())
+  gigId        Int
   freelancerId Int
-  createdAt   DateTime @default(now())
-  status      String   @default("PENDING")
-  description String?
-
-  gig ClientPost @relation(fields: [gigId], references: [id], onDelete: Cascade)
-  freelancer User @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
-
-  contract Contract?
+  createdAt    DateTime   @default(now())
+  status       String     @default("PENDING")
+  description  String?
+  freelancer   User       @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  gig          ClientPost @relation(fields: [gigId], references: [id], onDelete: Cascade)
+  contract     Contract?
 
   @@unique([gigId, freelancerId])
 }
 
 model Contract {
-  id        Int      @id @default(autoincrement())
-  uuid      String   @unique @default(uuid())
-
-  applicationId Int?  @unique
-  gigId         Int?
-  clientId      Int
-  freelancerId  Int
-
-  title                String   @db.VarChar(200)
-  description          String
-  servicesOffered      String
-  startDate            DateTime
-  deliveryDate         DateTime
-  expiryDate           DateTime
-  totalAmount          Decimal  @db.Decimal(10, 2)
-  currency             String   @default("USD") @db.VarChar(3)
-  deliverables         String
-  acceptanceCriteria   String
-  communicationPreferences String?
+  id                         Int                     @id @default(autoincrement())
+  uuid                       String                  @unique @default(uuid())
+  applicationId              Int?                    @unique
+  gigId                      Int?
+  clientId                   Int
+  freelancerId               Int
+  title                      String                  @db.VarChar(200)
+  description                String
+  servicesOffered            String
+  startDate                  DateTime
+  deliveryDate               DateTime
+  expiryDate                 DateTime
+  totalAmount                Decimal                 @db.Decimal(10, 2)
+  currency                   String                  @default("USD") @db.VarChar(3)
+  deliverables               String
+  acceptanceCriteria         String
+  communicationPreferences   String?
   intellectualPropertyRights String?
-  confidentialityTerms String?
-  disputeResolution    String?
-  terminationClauses   String?
-
-  status              String   @default("draft")
-  progressPercentage  Int      @default(0)
-  escrowStatus        String   @default("pending")
-  escrowAmount        Decimal? @db.Decimal(10, 2)
-
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  clientApprovedAt    DateTime?
-  freelancerApprovedAt DateTime?
-  completedAt         DateTime?
-
-  application ApplicationModel? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
-  gig         ClientPost?        @relation(fields: [gigId], references: [id], onDelete: SetNull)
-  client      User              @relation("ContractClient", fields: [clientId], references: [id], onDelete: Cascade)
-  freelancer  User              @relation("ContractFreelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
-
-  milestones    ContractMilestone[]
-  updateHistory ContractUpdateHistory[]
-  disputes      ContractDispute[]
+  confidentialityTerms       String?
+  disputeResolution          String?
+  terminationClauses         String?
+  status                     String                  @default("draft")
+  progressPercentage         Int                     @default(0)
+  escrowStatus               String                  @default("pending")
+  escrowAmount               Decimal?                @db.Decimal(10, 2)
+  createdAt                  DateTime                @default(now())
+  updatedAt                  DateTime                @updatedAt
+  clientApprovedAt           DateTime?
+  freelancerApprovedAt       DateTime?
+  completedAt                DateTime?
+  application                ApplicationModel?       @relation(fields: [applicationId], references: [id])
+  client                     User                    @relation("ContractClient", fields: [clientId], references: [id], onDelete: Cascade)
+  freelancer                 User                    @relation("ContractFreelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
+  gig                        ClientPost?             @relation(fields: [gigId], references: [id])
+  disputes                   ContractDispute[]
+  milestones                 ContractMilestone[]
+  updateHistory              ContractUpdateHistory[]
 }
 
 model ContractMilestone {
-  id          Int      @id @default(autoincrement())
-  uuid        String   @unique @default(uuid())
-  contractId  Int
-  title       String   @db.VarChar(200)
-  description String
-  amount      Decimal  @db.Decimal(10, 2)
-  dueDate     DateTime
-  status      String   @default("pending")
-  completedAt DateTime?
-  approvedAt  DateTime?
-  approvedById Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  approvedBy User?    @relation("MilestoneApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
-
+  id            Int                     @id @default(autoincrement())
+  uuid          String                  @unique @default(uuid())
+  contractId    Int
+  title         String                  @db.VarChar(200)
+  description   String
+  amount        Decimal                 @db.Decimal(10, 2)
+  dueDate       DateTime
+  status        String                  @default("pending")
+  completedAt   DateTime?
+  approvedAt    DateTime?
+  approvedById  Int?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  approvedBy    User?                   @relation("MilestoneApprovedBy", fields: [approvedById], references: [id])
+  contract      Contract                @relation(fields: [contractId], references: [id], onDelete: Cascade)
   updateHistory ContractUpdateHistory[]
 }
 
 model ContractUpdateHistory {
-  id            Int      @id @default(autoincrement())
-  uuid          String   @unique @default(uuid())
-  contractId    Int
-  updatedById   Int
-  updateType    String
-  isUpdateRequest Boolean @default(false)
+  id               Int                @id @default(autoincrement())
+  uuid             String             @unique @default(uuid())
+  contractId       Int
+  updatedById      Int
+  updateType       String
+  isUpdateRequest  Boolean            @default(false)
   requestedChanges Json?
-  approvalStatus  String?
-  approvedById    Int?
-  approvedAt      DateTime?
-  milestoneId     Int?
-
-  // Draft snapshot fields (kept flexible as JSON to avoid schema churn)
-  draftData       Json?
-  draftMilestones Json?
-
-  createdAt DateTime @default(now())
-
-  contract  Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  updatedBy User     @relation("ContractUpdateUpdatedBy", fields: [updatedById], references: [id], onDelete: Cascade)
-  approvedBy User?   @relation("ContractUpdateApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
-  milestone  ContractMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  approvalStatus   String?
+  approvedById     Int?
+  approvedAt       DateTime?
+  milestoneId      Int?
+  draftData        Json?
+  draftMilestones  Json?
+  createdAt        DateTime           @default(now())
+  approvedBy       User?              @relation("ContractUpdateApprovedBy", fields: [approvedById], references: [id])
+  contract         Contract           @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  milestone        ContractMilestone? @relation(fields: [milestoneId], references: [id])
+  updatedBy        User               @relation("ContractUpdateUpdatedBy", fields: [updatedById], references: [id], onDelete: Cascade)
 }
 
 model ContractDispute {
-  id          Int      @id @default(autoincrement())
-  uuid        String   @unique @default(uuid())
+  id          Int       @id @default(autoincrement())
+  uuid        String    @unique @default(uuid())
   contractId  Int
   raisedById  Int
   disputeType String
-  title       String   @db.VarChar(200)
+  title       String    @db.VarChar(200)
   description String
   evidence    String?
-  status      String   @default("open")
+  status      String    @default("open")
   resolution  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   closedAt    DateTime?
-
-  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  raisedBy User     @relation("ContractDisputeRaisedBy", fields: [raisedById], references: [id], onDelete: Cascade)
+  contract    Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  raisedBy    User      @relation("ContractDisputeRaisedBy", fields: [raisedById], references: [id], onDelete: Cascade)
 }
 
 model ChatRoom {
-  id           Int      @id @default(autoincrement())
-  uuid         String   @unique @default(uuid())
-  chatRoomName String   @db.VarChar(100)
+  id           Int           @id @default(autoincrement())
+  uuid         String        @unique @default(uuid())
+  chatRoomName String        @db.VarChar(100)
   user1Id      Int?
   user2Id      Int?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  chatRoomSlug String   @unique @db.VarChar(100)
-
-  user1 User? @relation("ChatRoomUser1", fields: [user1Id], references: [id], onDelete: SetNull)
-  user2 User? @relation("ChatRoomUser2", fields: [user2Id], references: [id], onDelete: SetNull)
-  messages ChatMessage[]
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  chatRoomSlug String        @unique @db.VarChar(100)
+  messages     ChatMessage[]
+  user1        User?         @relation("ChatRoomUser1", fields: [user1Id], references: [id])
+  user2        User?         @relation("ChatRoomUser2", fields: [user2Id], references: [id])
 
   @@unique([user1Id, user2Id])
 }
@@ -287,30 +254,28 @@ model ChatMessage {
   message    String
   senderId   Int
   createdAt  DateTime @default(now())
-
-  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
-  sender   User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  sender     User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([chatRoomId, createdAt])
 }
 
 model PortfolioProfile {
-  id               Int      @id @default(autoincrement())
-  uuid             String   @unique @default(uuid())
-  userId           Int      @unique
-  title            String?  @db.VarChar(200)
-  location         String?  @db.VarChar(100)
-  responseTime     String   @default("Within 24 hours") @db.VarChar(50)
-  isOnline         Boolean  @default(false)
-  verified         Boolean  @default(false)
-  memberSince      DateTime @default(now())
-  completedProjects Int     @default(0)
-  viewCount        Int      @default(0)
-  links            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                Int      @id @default(autoincrement())
+  uuid              String   @unique @default(uuid())
+  userId            Int      @unique
+  title             String?  @db.VarChar(200)
+  location          String?  @db.VarChar(100)
+  responseTime      String   @default("Within 24 hours") @db.VarChar(50)
+  isOnline          Boolean  @default(false)
+  verified          Boolean  @default(false)
+  memberSince       DateTime @default(now())
+  completedProjects Int      @default(0)
+  viewCount         Int      @default(0)
+  links             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PortfolioSkill {
@@ -321,8 +286,7 @@ model PortfolioSkill {
   category  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, name])
 }
@@ -335,57 +299,52 @@ model PortfolioLanguage {
   proficiency String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, name])
 }
 
 model PortfolioProject {
-  id             Int      @id @default(autoincrement())
-  uuid           String   @unique @default(uuid())
+  id             Int       @id @default(autoincrement())
+  uuid           String    @unique @default(uuid())
   userId         Int
-  title          String   @db.VarChar(200)
-  category       String   @db.VarChar(100)
+  title          String    @db.VarChar(200)
+  category       String    @db.VarChar(100)
   description    String
   image          String?
   projectUrl     String?
-  viewCount      Int      @default(0)
+  viewCount      Int       @default(0)
   completionDate DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserReview {
-  id          Int      @id @default(autoincrement())
-  uuid        String   @unique @default(uuid())
+  id           Int      @id @default(autoincrement())
+  uuid         String   @unique @default(uuid())
   freelancerId Int
   clientId     Int
-  rating      Int
-  comment     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  freelancer User @relation("ReviewFreelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
-  client     User @relation("ReviewClient", fields: [clientId], references: [id], onDelete: Cascade)
+  rating       Int
+  comment      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  client       User     @relation("ReviewClient", fields: [clientId], references: [id], onDelete: Cascade)
+  freelancer   User     @relation("ReviewFreelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
 
   @@unique([freelancerId, clientId])
 }
 
 model PortfolioCertification {
-  id            Int      @id @default(autoincrement())
-  uuid          String   @unique @default(uuid())
-  userId        Int
-  name          String   @db.VarChar(200)
-  organization  String   @db.VarChar(200)
-  issueDate     DateTime
-  expiryDate    DateTime?
+  id             Int       @id @default(autoincrement())
+  uuid           String    @unique @default(uuid())
+  userId         Int
+  name           String    @db.VarChar(200)
+  organization   String    @db.VarChar(200)
+  issueDate      DateTime
+  expiryDate     DateTime?
   certificateUrl String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
-
