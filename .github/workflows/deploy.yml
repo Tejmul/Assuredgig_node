@@ -27,6 +27,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify required secrets
+        run: |
+          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
+            echo "::error::DATABASE_URL secret is not set. Add it under GitHub → Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
       - name: Run Prisma migrations
         run: npm run prisma:migrate:deploy
         env:
