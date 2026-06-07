@@ -73,5 +73,22 @@ jobs:
           echo "Deployed to $url"
 
       - name: Smoke test
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
-          curl -fsS "${{ steps.deploy.outputs.url }}/health/" | grep -q '"status":"ok"'
+          set -euo pipefail
+          CURL_ARGS=(-fsS)
+          if [ -n "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
+            CURL_ARGS+=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+          fi
+          body=$(curl "${CURL_ARGS[@]}" "$DEPLOY_URL/health/" || true)
+          if echo "$body" | grep -q '"status":"ok"'; then
+            echo "Health check passed"
+            exit 0
+          fi
+          echo "::error::Health check failed (often HTTP 401 when Vercel Deployment Protection is on)."
+          echo "Add VERCEL_AUTOMATION_BYPASS_SECRET to GitHub secrets:"
+          echo "Vercel → Project → Settings → Deployment Protection → Protection Bypass for Automation"
+          echo "Response: ${body:-<empty>}"
+          exit 1
