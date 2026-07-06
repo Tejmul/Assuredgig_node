@@ -18,8 +18,17 @@ async function createOrGetRoom(req, res, next) {
     const existing = await chatService.getRoomBySlug(prisma, slug);
     if (existing) return res.json(chatSerializer.serializeRoom(existing));
 
-    const created = await chatService.createRoom(prisma, { requester: req.user, other });
-    return res.status(201).json(chatSerializer.serializeRoom(created));
+    try {
+      const created = await chatService.createRoom(prisma, { requester: req.user, other });
+      return res.status(201).json(chatSerializer.serializeRoom(created));
+    } catch (err) {
+      // Concurrent request already created the room — return the existing one.
+      if (err?.code === 'P2002') {
+        const room = await chatService.getRoomBySlug(prisma, slug);
+        if (room) return res.json(chatSerializer.serializeRoom(room));
+      }
+      throw err;
+    }
   } catch (e) {
     return next(e);
   }
@@ -67,7 +76,7 @@ async function sendMessage(req, res, next) {
     const room = await prisma.chatRoom.findUnique({ where: { chatRoomSlug: body.chat_room } });
     if (!room) return res.status(404).json({ error: 'Room not found' });
 
-    chatService.ensureRoomMembership(room, req.user.id);
+    chatService.ensureRoomMembership(room, req.user.id, 'Not authorized to send messages in this chat');
     const msg = await chatService.createMessage(prisma, { roomId: room.id, senderId: req.user.id, message: body.message });
     return res.status(201).json(chatSerializer.serializeMessage(msg));
   } catch (e) {

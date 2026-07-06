@@ -68,17 +68,17 @@ async function remove(req, res, next) {
     await prisma.portfolioProfile.delete({ where: { userId: req.user.id } });
     return res.json({ message: 'Deleted' });
   } catch (e) {
+    if (e?.code === 'P2025') return res.status(404).json({ error: 'Portfolio not found' });
     return next(e);
   }
 }
 
 async function getById(req, res, next) {
   try {
-    const schema = z.object({ portfolio_id: z.string() });
+    const schema = z.object({ portfolio_id: z.coerce.number().int() });
     const { portfolio_id } = schema.parse(req.params);
-    const id = Number(portfolio_id);
 
-    const row = await portfolioService.getById(prisma, id);
+    const row = await portfolioService.getById(prisma, portfolio_id);
     return res.json(portfolioService.serializePortfolio(row));
   } catch (e) {
     return next(e);
@@ -87,11 +87,10 @@ async function getById(req, res, next) {
 
 async function listReviews(req, res, next) {
   try {
-    const schema = z.object({ user_id: z.string() });
+    const schema = z.object({ user_id: z.coerce.number().int() });
     const { user_id } = schema.parse(req.params);
-    const uid = Number(user_id);
 
-    const reviews = await portfolioService.listReviews(prisma, uid);
+    const reviews = await portfolioService.listReviews(prisma, user_id);
     return res.json(reviews);
   } catch (e) {
     return next(e);
@@ -100,9 +99,8 @@ async function listReviews(req, res, next) {
 
 async function upsertReview(req, res, next) {
   try {
-    const paramsSchema = z.object({ user_id: z.string() });
-    const { user_id } = paramsSchema.parse(req.params);
-    const freelancerId = Number(user_id);
+    const paramsSchema = z.object({ user_id: z.coerce.number().int() });
+    const { user_id: freelancerId } = paramsSchema.parse(req.params);
 
     const bodySchema = z.object({
       rating: z.number().int().min(1).max(5),

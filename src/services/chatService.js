@@ -36,10 +36,10 @@ async function createRoom(prisma, { requester, other }) {
   });
 }
 
-function ensureRoomMembership(room, userId) {
+function ensureRoomMembership(room, userId, message = 'Not authorized to access this chat') {
   const member = room.user1Id === userId || room.user2Id === userId;
   if (!member) {
-    const err = new Error('Not authorized to access this chat');
+    const err = new Error(message);
     err.status = 403;
     throw err;
   }

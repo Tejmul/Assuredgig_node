@@ -27,6 +27,23 @@ async function list(prisma, q) {
     ];
   }
 
+  // Filters that live on related records (User.profile.hourlyRate and
+  // User.portfolioSkills). Combined into a single `user` relation filter.
+  const userFilter = {};
+  const minRate = Number(q.min_rate);
+  const maxRate = Number(q.max_rate);
+  if (q.min_rate != null && Number.isFinite(minRate)) {
+    userFilter.profile = { ...(userFilter.profile || {}), hourlyRate: { ...(userFilter.profile?.hourlyRate || {}), gte: minRate } };
+  }
+  if (q.max_rate != null && Number.isFinite(maxRate)) {
+    userFilter.profile = { ...(userFilter.profile || {}), hourlyRate: { ...(userFilter.profile?.hourlyRate || {}), lte: maxRate } };
+  }
+  if (q.skills) {
+    const skills = q.skills.split(',').map((s) => s.trim()).filter(Boolean);
+    if (skills.length) userFilter.portfolioSkills = { some: { name: { in: skills } } };
+  }
+  if (Object.keys(userFilter).length) where.user = userFilter;
+
   return prisma.portfolioProfile.findMany({
     where,
     orderBy: { updatedAt: 'desc' },
@@ -62,15 +79,24 @@ async function getByUserId(prisma, userId) {
 }
 
 async function update(prisma, userId, body) {
-  return prisma.portfolioProfile.update({
-    where: { userId },
-    data: {
-      title: body.title ?? undefined,
-      location: body.location ?? undefined,
-      links: body.links ?? undefined,
-      isOnline: body.is_online ?? undefined
+  try {
+    return await prisma.portfolioProfile.update({
+      where: { userId },
+      data: {
+        title: body.title ?? undefined,
+        location: body.location ?? undefined,
+        links: body.links ?? undefined,
+        isOnline: body.is_online ?? undefined
+      }
+    });
+  } catch (e) {
+    if (e?.code === 'P2025') {
+      const err = new Error('Portfolio not found');
+      err.status = 404;
+      throw err;
     }
-  });
+    throw e;
+  }
 }
 
 async function getById(prisma, id) {

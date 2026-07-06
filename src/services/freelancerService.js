@@ -39,22 +39,30 @@ async function applyGig(prisma, user, body) {
   const existing = await prisma.applicationModel.findFirst({
     where: { gigId: gig.id, freelancerId: user.id }
   });
-  if (existing) {
+  if (existing && existing.status !== 'CANCELLED') {
     const err = new Error('You have already applied to this gig.');
     err.status = 400;
     throw err;
   }
 
-  const application = await prisma.applicationModel.create({
-    data: {
-      gigId: gig.id,
-      freelancerId: user.id,
-      description: body.description ?? null
-    },
-    include: {
-      freelancer: { include: { profile: true } }
-    }
-  });
+  // A previously cancelled application blocks re-inserting (unique gigId+freelancerId),
+  // so reactivate that row instead of creating a duplicate.
+  const application = existing
+    ? await prisma.applicationModel.update({
+        where: { id: existing.id },
+        data: { status: 'PENDING', description: body.description ?? null },
+        include: { freelancer: { include: { profile: true } } }
+      })
+    : await prisma.applicationModel.create({
+        data: {
+          gigId: gig.id,
+          freelancerId: user.id,
+          description: body.description ?? null
+        },
+        include: {
+          freelancer: { include: { profile: true } }
+        }
+      });
 
   return {
     message: 'Application submitted successfully.',

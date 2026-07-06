@@ -1,7 +1,14 @@
-const { randomUUID } = require('crypto');
+const { randomUUID, randomInt } = require('crypto');
 
 const { signAccessToken, signRefreshToken, verifyRefreshToken, hashToken, refreshTtlSeconds } = require('../utils/jwt');
 const { sendOtpEmail } = require('../utils/mail');
+
+// Password-reset OTPs are single-use and short-lived.
+const OTP_TTL_MINUTES = 10;
+
+function otpCutoff() {
+  return new Date(Date.now() - OTP_TTL_MINUTES * 60 * 1000);
+}
 
 function shortId(len = 6) {
   return randomUUID().replace(/-/g, '').slice(0, len);
@@ -62,7 +69,7 @@ async function refreshAccessToken(prisma, refreshJwt) {
   }
 
   const user = await prisma.user.findUnique({ where: { id: userId }, include: { profile: true } });
-  if (!user) {
+  if (!user || !user.isActive) {
     const err = new Error('Invalid token');
     err.status = 401;
     throw err;
@@ -75,7 +82,7 @@ async function sendPasswordResetOtp(prisma, email) {
   const user = await prisma.user.findFirst({ where: { email: String(email).toLowerCase() } });
   if (!user) return;
 
-  const otp = String(Math.floor(100000 + Math.random() * 900000));
+  const otp = String(randomInt(100000, 1000000));
   await prisma.passwordResetOTP.create({ data: { userId: user.id, otp } });
   await sendOtpEmail({ to: user.email, otp }).catch(() => {});
 }
@@ -89,11 +96,11 @@ async function verifyPasswordResetOtp(prisma, email, otp) {
   }
 
   const row = await prisma.passwordResetOTP.findFirst({
-    where: { userId: user.id, otp, isUsedAt: null },
+    where: { userId: user.id, otp, isUsedAt: null, createdAt: { gte: otpCutoff() } },
     orderBy: { createdAt: 'desc' }
   });
   if (!row) {
-    const err = new Error('Invalid OTP');
+    const err = new Error('Invalid or expired OTP');
     err.status = 400;
     throw err;
   }
@@ -110,11 +117,11 @@ async function resetPasswordWithOtp(prisma, email, passwordHash) {
   }
 
   const latest = await prisma.passwordResetOTP.findFirst({
-    where: { userId: user.id, isAuthenticated: true, isUsedAt: null },
+    where: { userId: user.id, isAuthenticated: true, isUsedAt: null, createdAt: { gte: otpCutoff() } },
     orderBy: { createdAt: 'desc' }
   });
   if (!latest) {
-    const err = new Error('OTP not verified');
+    const err = new Error('OTP not verified or expired');
     err.status = 400;
     throw err;
   }

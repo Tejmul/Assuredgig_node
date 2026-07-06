@@ -1,3 +1,5 @@
+const { ZodError } = require('zod');
+
 function notFoundHandler(req, res, next) {
   res.status(404).json({ error: 'Not found' });
 }
@@ -7,6 +9,18 @@ function notFoundHandler(req, res, next) {
 // - { error, details }
 // - { message, errors? }
 function errorHandler(err, req, res, next) {
+  // Zod validation errors are client errors (400), returned as DRF-style
+  // field errors: { field: ["message", ...] }. Without this, ZodError falls
+  // through to the generic branches below and is reported as a 500.
+  if (err instanceof ZodError || err?.name === 'ZodError') {
+    const details = {};
+    for (const issue of err.issues || []) {
+      const key = issue.path && issue.path.length ? issue.path.join('.') : 'non_field_errors';
+      (details[key] = details[key] || []).push(issue.message);
+    }
+    return res.status(400).json(details);
+  }
+
   const status = Number(err.status || err.statusCode || 500);
 
   if (err.expose && err.body) {

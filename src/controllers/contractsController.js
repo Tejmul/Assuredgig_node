@@ -3,6 +3,10 @@ const { z } = require('zod');
 const { prisma } = require('../prisma');
 const { applyContractExpirySingle, expireStaleContractsForUser } = require('../utils/contractExpiry');
 
+// Accepts a date/datetime string that Date can actually parse. Prevents
+// "Invalid Date" values from reaching Prisma (which would otherwise 500).
+const dateString = z.string().refine((v) => !Number.isNaN(Date.parse(v)), { message: 'Invalid date' });
+
 function mapDraftDataToContractUpdate(data) {
   if (!data || typeof data !== 'object') return {};
   const out = {};
@@ -151,9 +155,9 @@ async function create(req, res, next) {
       title: z.string(),
       description: z.string(),
       services_offered: z.string(),
-      start_date: z.string(),
-      delivery_date: z.string(),
-      expiry_date: z.string(),
+      start_date: dateString,
+      delivery_date: dateString,
+      expiry_date: dateString,
       total_amount: z.number(),
       currency: z.string().length(3).optional(),
       deliverables: z.string(),
@@ -169,7 +173,7 @@ async function create(req, res, next) {
             title: z.string(),
             description: z.string(),
             amount: z.number(),
-            due_date: z.string()
+            due_date: dateString
           })
         )
         .optional()
@@ -374,6 +378,12 @@ async function reject(req, res, next) {
     if (!isContractParty(contract, req.user.id)) return res.status(403).json({ error: 'Not authorized' });
 
     contract = await applyContractExpirySingle(prisma, contract);
+
+    // Per the contract state machine, reject is only valid from a pending state.
+    // Without this guard, either party could cancel an active or completed contract.
+    if (!contract.status.startsWith('pending_')) {
+      return res.status(400).json({ error: 'Contract is not pending approval' });
+    }
 
     await prisma.contract.update({ where: { id: contract.id }, data: { status: 'cancelled' } });
     return res.json({ message: 'Rejected' });
@@ -598,7 +608,7 @@ async function milestonesCreate(req, res, next) {
       title: z.string(),
       description: z.string(),
       amount: z.number(),
-      due_date: z.string()
+      due_date: dateString
     });
     const body = bodySchema.parse(req.body);
 
@@ -641,6 +651,7 @@ async function milestonesComplete(req, res, next) {
 
     let contract = await prisma.contract.findUnique({ where: { uuid } });
     if (!contract) return res.status(404).json({ error: 'Not found' });
+    if (!isContractParty(contract, req.user.id)) return res.status(403).json({ error: 'Not authorized' });
     contract = await applyContractExpirySingle(prisma, contract);
     if (contract.status !== 'active') return res.status(400).json({ error: 'Contract must be active' });
     if (contract.freelancerId !== req.user.id) return res.status(403).json({ error: 'Only the freelancer can complete milestones' });
@@ -668,6 +679,7 @@ async function milestonesApprove(req, res, next) {
 
     let contract = await prisma.contract.findUnique({ where: { uuid } });
     if (!contract) return res.status(404).json({ error: 'Not found' });
+    if (!isContractParty(contract, req.user.id)) return res.status(403).json({ error: 'Not authorized' });
     contract = await applyContractExpirySingle(prisma, contract);
     if (contract.status !== 'active') return res.status(400).json({ error: 'Contract must be active' });
     if (contract.clientId !== req.user.id) return res.status(403).json({ error: 'Only the client can approve milestones' });
@@ -693,6 +705,7 @@ async function milestonesReject(req, res, next) {
 
     let contract = await prisma.contract.findUnique({ where: { uuid } });
     if (!contract) return res.status(404).json({ error: 'Not found' });
+    if (!isContractParty(contract, req.user.id)) return res.status(403).json({ error: 'Not authorized' });
     contract = await applyContractExpirySingle(prisma, contract);
     if (contract.status !== 'active') return res.status(400).json({ error: 'Contract must be active' });
     if (contract.clientId !== req.user.id) return res.status(403).json({ error: 'Only the client can reject milestones' });
